@@ -21,48 +21,58 @@ class BPETokenizerTrainer:
         num_merges = vocab_size - len(self.vocab)
         curr_merge = 0
 
-        pairs = defaultdict(int)
-        for key, value in pre_token.items():
+        pairs = defaultdict(list)
+        for idx, item in enumerate(pre_token):
+            key, value = item
             for i in range(len(key) - 1):
-                pairs[key[i : i + 2]] += value
+                if key[i : i + 2] not in pairs:
+                    pairs[key[i : i + 2]] = [0, set()]
+                pairs[key[i : i + 2]][0] += value
+                pairs[key[i : i + 2]][1].add(idx)
 
         while curr_merge < num_merges:
             curr_merge += 1
-            bytes_tuple_to_merge = self.find_max(pairs)[0]
+            max_item = self.find_max(pairs)
+            bytes_tuple_to_merge = max_item[0]
+            token_idx_list = max_item[1][1]
             self.merges.append(bytes_tuple_to_merge)
             bytes_to_merge = self.bytes_tuple_to_bytes(bytes_tuple_to_merge)
             self.vocab[len(self.vocab)] = bytes_to_merge
-            modified_pre_token = defaultdict(int)
-            original_pre_token = defaultdict(int)
-            for key, value in pre_token.items():
+            modified_pre_token = defaultdict(tuple)
+            original_pre_token = defaultdict(tuple)
+            for token_idx in token_idx_list:
                 new_key = []
                 i = 0
-                has_change = False
+                key, value = pre_token[token_idx]
                 while i < len(key):
                     if i + 1 < len(key) and key[i : i + 2] == bytes_tuple_to_merge:
                         new_key.append(bytes_to_merge)
                         i += 1
-                        has_change = True
                     else:
                         new_key.append(key[i])
                     i += 1
 
-                if has_change:
-                    new_key_tuple = tuple(new_key)
-                    modified_pre_token[new_key_tuple] = value
-                    original_pre_token[key] = value
+                new_key_tuple = tuple(new_key)
+                modified_pre_token[token_idx] = (new_key_tuple, value)
+                original_pre_token[token_idx] = (key, value)
 
-            for key, value in original_pre_token.items():
-                del pre_token[key]
+            for token_idx, item in original_pre_token.items():
+                key, value = item
                 for i in range(len(key) - 1):
-                    pairs[key[i : i + 2]] -= value
-                    if pairs[key[i : i + 2]] == 0:
+                    pairs[key[i : i + 2]][0] -= value
+                    if token_idx in pairs[key[i : i + 2]][1]:
+                        pairs[key[i : i + 2]][1].remove(token_idx)
+                    if pairs[key[i : i + 2]][0] == 0:
                         del pairs[key[i : i + 2]]
 
-            for key, value in modified_pre_token.items():
-                pre_token[key] = value
+            for token_idx, item in modified_pre_token.items():
+                key, value = item
+                pre_token[token_idx] = item
                 for i in range(len(key) - 1):
-                    pairs[key[i : i + 2]] += value
+                    if key[i : i + 2] not in pairs:
+                        pairs[key[i : i + 2]] = [0, set()]
+                    pairs[key[i : i + 2]][0] += value
+                    pairs[key[i : i + 2]][1].add(token_idx)
 
         return (self.vocab, self.merges)
 
@@ -88,7 +98,7 @@ class BPETokenizerTrainer:
                 else:
                     for m in re.finditer(PAT, line):
                         pre_token[self.bytes_to_bytes_tuple(m.group(0))] += 1
-        return pre_token
+        return list(pre_token.items())
 
     def initialize_vocab(self):
         for i, t in enumerate(self.special_tokens):
@@ -112,8 +122,8 @@ class BPETokenizerTrainer:
         return bytes(int_list)
 
     def find_max(self, pairs):
-        max_item = ((), 0)
+        max_item = ((), [0, set()])
         for key, value in pairs.items():
-            if value > max_item[1] or (value == max_item[1] and key > max_item[0]):
+            if value[0] > max_item[1][0] or (value[0] == max_item[1][0] and key > max_item[0]):
                 max_item = (key, value)
         return max_item
