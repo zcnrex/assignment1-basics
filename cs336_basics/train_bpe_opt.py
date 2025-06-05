@@ -3,6 +3,7 @@ import os
 import regex as re
 from dataclasses import dataclass, field
 import multiprocessing
+from .pretokenization_example import find_chunk_boundaries
 
 # String pattern
 # PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
@@ -42,7 +43,7 @@ class BPETokenizerTrainer:
                 pairs[bytes_tuple].indices.add(idx)
 
         for iteration in range(num_merges):
-            print(f"iteration: {iteration}")
+            # print(f"iteration: {iteration}")
             max_item = self.find_max(pairs)
             bytes_tuple_to_merge = max_item[0]
             token_idx_list = max_item[1].indices
@@ -110,13 +111,11 @@ class BPETokenizerTrainer:
     def pre_tokenize(self, input_path):
         num_processes = multiprocessing.cpu_count() - 1
         with open(input_path, "rb") as f:
-            docs = f.read()
-            docs_list = re.split(self.delimiter, docs)
-            print(f"num_docs {len(docs_list)}")
+            boundaries = find_chunk_boundaries(f, num_processes, "<|endoftext|>".encode("utf-8"))
+            tasks = [(input_path, start, end) for start, end in zip(boundaries[:-1], boundaries[1:])]
 
-            num_processes = min(len(docs_list), num_processes)
             with multiprocessing.Pool(processes=num_processes) as pool:
-                pre_token_list = pool.map(self.process_doc, docs_list)
+                pre_token_list = pool.map(self.process_doc, tasks)
 
         pre_token = defaultdict(int)
         for pre_tok in pre_token_list:
@@ -124,10 +123,16 @@ class BPETokenizerTrainer:
                 pre_token[key] += value
         return list(pre_token.items())
 
-    def process_doc(self, doc):
+    def process_doc(self, args):
+        file_path, start, end = args
         pre_token = defaultdict(int)
-        for m in re.finditer(PAT, doc):
-            pre_token[self.bytes_to_bytes_tuple(m.group(0))] += 1
+        with open(file_path, 'rb') as f:
+            f.seek(start)
+            docs = f.read(end - start)
+            docs_list = re.split(self.delimiter, docs)
+            for doc in docs_list:
+                for m in re.finditer(PAT, doc):
+                    pre_token[self.bytes_to_bytes_tuple(m.group(0))] += 1
         return pre_token
 
     def initialize_vocab(self):
