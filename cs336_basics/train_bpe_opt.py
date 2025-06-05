@@ -1,9 +1,18 @@
 from collections import defaultdict
 import os
 import regex as re
+from dataclasses import dataclass, field
 
+# String pattern
 # PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+# bytes pattern
 PAT = b"'(?:[sdmt]|ll|ve|re)| ?[a-zA-Z]+| ?[0-9]+| ?[^\\sa-zA-Z0-9]+|\\s+(?!\\S)|\\s+"
+
+
+@dataclass
+class PairValue:
+    count: int = 0
+    indices: set = field(default_factory=lambda: set())
 
 
 class BPETokenizerTrainer:
@@ -19,31 +28,35 @@ class BPETokenizerTrainer:
         self.initialize_vocab()
         pre_token = self.pre_tokenize(input_path=input_path, pattern="d")
         num_merges = vocab_size - len(self.vocab)
-        curr_merge = 0
 
-        pairs = defaultdict(list)
+        modified_pre_token = defaultdict(tuple)
+        original_pre_token = defaultdict(tuple)
+
+        pairs = defaultdict(PairValue)
         for idx, item in enumerate(pre_token):
             key, value = item
             for i in range(len(key) - 1):
-                if key[i : i + 2] not in pairs:
-                    pairs[key[i : i + 2]] = [0, set()]
-                pairs[key[i : i + 2]][0] += value
-                pairs[key[i : i + 2]][1].add(idx)
+                bytes_tuple = key[i : i + 2]
+                pairs[bytes_tuple].count += value
+                pairs[bytes_tuple].indices.add(idx)
 
-        while curr_merge < num_merges:
-            curr_merge += 1
+        for _ in range(num_merges):
             max_item = self.find_max(pairs)
             bytes_tuple_to_merge = max_item[0]
-            token_idx_list = max_item[1][1]
+            token_idx_list = max_item[1].indices
+
             self.merges.append(bytes_tuple_to_merge)
             bytes_to_merge = self.bytes_tuple_to_bytes(bytes_tuple_to_merge)
             self.vocab[len(self.vocab)] = bytes_to_merge
-            modified_pre_token = defaultdict(tuple)
-            original_pre_token = defaultdict(tuple)
+
+            modified_pre_token.clear()
+            original_pre_token.clear()
+
+            # Check the tokens affected
             for token_idx in token_idx_list:
+                key, value = pre_token[token_idx]
                 new_key = []
                 i = 0
-                key, value = pre_token[token_idx]
                 while i < len(key):
                     if i + 1 < len(key) and key[i : i + 2] == bytes_tuple_to_merge:
                         new_key.append(bytes_to_merge)
@@ -52,27 +65,27 @@ class BPETokenizerTrainer:
                         new_key.append(key[i])
                     i += 1
 
-                new_key_tuple = tuple(new_key)
-                modified_pre_token[token_idx] = (new_key_tuple, value)
+                modified_pre_token[token_idx] = (tuple(new_key), value)
                 original_pre_token[token_idx] = (key, value)
 
+            # Remove the original tokens
             for token_idx, item in original_pre_token.items():
                 key, value = item
                 for i in range(len(key) - 1):
-                    pairs[key[i : i + 2]][0] -= value
-                    if token_idx in pairs[key[i : i + 2]][1]:
-                        pairs[key[i : i + 2]][1].remove(token_idx)
-                    if pairs[key[i : i + 2]][0] == 0:
-                        del pairs[key[i : i + 2]]
+                    bytes_tuple = key[i : i + 2]
+                    pairs[bytes_tuple].count -= value
+                    pairs[bytes_tuple].indices.discard(token_idx)
+                    if pairs[bytes_tuple].count == 0:
+                        del pairs[bytes_tuple]
 
+            # update the new tokens
             for token_idx, item in modified_pre_token.items():
                 key, value = item
                 pre_token[token_idx] = item
                 for i in range(len(key) - 1):
-                    if key[i : i + 2] not in pairs:
-                        pairs[key[i : i + 2]] = [0, set()]
-                    pairs[key[i : i + 2]][0] += value
-                    pairs[key[i : i + 2]][1].add(token_idx)
+                    bytes_tuple = key[i : i + 2]
+                    pairs[bytes_tuple].count += value
+                    pairs[bytes_tuple].indices.add(token_idx)
 
         return (self.vocab, self.merges)
 
@@ -83,15 +96,17 @@ class BPETokenizerTrainer:
         self.special_tokens = set()
         if special_tokens is None:
             return
+
         for s in special_tokens:
             self.special_tokens.add(s.encode("utf-8", errors="ignore"))
 
-    def pre_tokenize(self, input_path, pattern="ws"):
+    def pre_tokenize(self, input_path, pattern="d"):
         pre_token = defaultdict(int)
         with open(input_path, "rb") as f:
             lines = f.readlines()
             for line in lines:
                 if pattern == "ws":
+                    # For debugging purpose
                     tokens = line.replace(b"\n", b"").split(b" ")
                     for token in tokens:
                         pre_token[self.bytes_to_bytes_tuple(token)] += 1
@@ -122,8 +137,8 @@ class BPETokenizerTrainer:
         return bytes(int_list)
 
     def find_max(self, pairs):
-        max_item = ((), [0, set()])
+        max_item = ((), PairValue())
         for key, value in pairs.items():
-            if value[0] > max_item[1][0] or (value[0] == max_item[1][0] and key > max_item[0]):
+            if value.count > max_item[1].count or (value.count == max_item[1].count and key > max_item[0]):
                 max_item = (key, value)
         return max_item
