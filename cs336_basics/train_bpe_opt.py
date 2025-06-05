@@ -94,17 +94,23 @@ class BPETokenizerTrainer:
         special_tokens: list[str] | None = None,
     ):
         self.special_tokens = set()
+        self.escaped_special_tokens = set()
         if special_tokens is None:
+            self.delimiter = None
             return
 
         for s in special_tokens:
             self.special_tokens.add(s.encode("utf-8", errors="ignore"))
+            self.escaped_special_tokens.add(re.escape(s).encode("utf-8", errors="ignore"))
+
+        self.delimiter = b'|'.join(self.escaped_special_tokens)
 
     def pre_tokenize(self, input_path, pattern="d"):
         pre_token = defaultdict(int)
         with open(input_path, "rb") as f:
-            lines = f.readlines()
-            for line in lines:
+            docs = f.read()
+            docs_list = re.split(self.delimiter, docs)
+            for line in docs_list:
                 if pattern == "ws":
                     # For debugging purpose
                     tokens = line.replace(b"\n", b"").split(b" ")
