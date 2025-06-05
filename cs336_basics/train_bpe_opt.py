@@ -2,6 +2,7 @@ from collections import defaultdict
 import os
 import regex as re
 from dataclasses import dataclass, field
+import multiprocessing
 
 # String pattern
 # PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
@@ -26,7 +27,7 @@ class BPETokenizerTrainer:
     def train(self, input_path: str | os.PathLike, vocab_size: int, special_tokens: list[str], **kwargs):
         self.initialize_special_tokens(special_tokens=special_tokens)
         self.initialize_vocab()
-        pre_token = self.pre_tokenize(input_path=input_path, pattern="d")
+        pre_token = self.pre_tokenize(input_path=input_path)
         num_merges = vocab_size - len(self.vocab)
 
         modified_pre_token = defaultdict(tuple)
@@ -40,7 +41,8 @@ class BPETokenizerTrainer:
                 pairs[bytes_tuple].count += value
                 pairs[bytes_tuple].indices.add(idx)
 
-        for _ in range(num_merges):
+        for iteration in range(num_merges):
+            print(f"iteration: {iteration}")
             max_item = self.find_max(pairs)
             bytes_tuple_to_merge = max_item[0]
             token_idx_list = max_item[1].indices
@@ -103,23 +105,30 @@ class BPETokenizerTrainer:
             self.special_tokens.add(s.encode("utf-8", errors="ignore"))
             self.escaped_special_tokens.add(re.escape(s).encode("utf-8", errors="ignore"))
 
-        self.delimiter = b'|'.join(self.escaped_special_tokens)
+        self.delimiter = b"|".join(self.escaped_special_tokens)
 
-    def pre_tokenize(self, input_path, pattern="d"):
-        pre_token = defaultdict(int)
+    def pre_tokenize(self, input_path):
+        num_processes = multiprocessing.cpu_count() - 1
         with open(input_path, "rb") as f:
             docs = f.read()
             docs_list = re.split(self.delimiter, docs)
-            for line in docs_list:
-                if pattern == "ws":
-                    # For debugging purpose
-                    tokens = line.replace(b"\n", b"").split(b" ")
-                    for token in tokens:
-                        pre_token[self.bytes_to_bytes_tuple(token)] += 1
-                else:
-                    for m in re.finditer(PAT, line):
-                        pre_token[self.bytes_to_bytes_tuple(m.group(0))] += 1
+            print(f"num_docs {len(docs_list)}")
+
+            num_processes = min(len(docs_list), num_processes)
+            with multiprocessing.Pool(processes=num_processes) as pool:
+                pre_token_list = pool.map(self.process_doc, docs_list)
+
+        pre_token = defaultdict(int)
+        for pre_tok in pre_token_list:
+            for key, value in pre_tok.items():
+                pre_token[key] += value
         return list(pre_token.items())
+
+    def process_doc(self, doc):
+        pre_token = defaultdict(int)
+        for m in re.finditer(PAT, doc):
+            pre_token[self.bytes_to_bytes_tuple(m.group(0))] += 1
+        return pre_token
 
     def initialize_vocab(self):
         for i, t in enumerate(self.special_tokens):

@@ -16,8 +16,9 @@ def test_sample():
         vocab_size=263,
         special_tokens=["<|endoftext|>"],
     )
-    reference_merges = [(b's', b't'), (b'e', b'st'), (b'o', b'w'), (b'l', b'ow'), (b'w', b'est'), (b'n', b'e')]
+    reference_merges = [(b"s", b"t"), (b"e", b"st"), (b"o", b"w"), (b"l", b"ow"), (b"w", b"est"), (b"n", b"e")]
     assert merges == reference_merges
+
 
 def test_train_bpe_speed():
     """
