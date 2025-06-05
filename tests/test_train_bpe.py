@@ -5,6 +5,20 @@ from .adapters import run_train_bpe
 from .common import FIXTURES_PATH, gpt2_bytes_to_unicode
 
 
+def test_sample():
+    skip = 0
+    if skip:
+        return
+
+    input_path = FIXTURES_PATH / "tiny.txt"
+    _, merges = run_train_bpe(
+        input_path=input_path,
+        vocab_size=263,
+        special_tokens=["<|endoftext|>"],
+    )
+    reference_merges = [(b's', b't'), (b'e', b'st'), (b'o', b'w'), (b'l', b'ow'), (b'w', b'est'), (b'n', b'e')]
+    assert merges == reference_merges
+
 def test_train_bpe_speed():
     """
     Ensure that BPE training is relatively efficient by measuring training
@@ -13,8 +27,10 @@ def test_train_bpe_speed():
     reference implementation on my laptop. In contrast, the toy implementation
     takes around 3 seconds.
     """
+    skip = 0
+    if skip:
+        return
     input_path = FIXTURES_PATH / "corpus.en"
-    # input_path = FIXTURES_PATH / "tiny.txt"
     start_time = time.time()
     _, _ = run_train_bpe(
         input_path=input_path,
@@ -28,6 +44,9 @@ def test_train_bpe_speed():
 
 
 def test_train_bpe():
+    skip = 0
+    if skip:
+        return
     input_path = FIXTURES_PATH / "corpus.en"
     vocab, merges = run_train_bpe(
         input_path=input_path,

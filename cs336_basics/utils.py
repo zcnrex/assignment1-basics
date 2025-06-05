@@ -1,8 +1,8 @@
-DEBUG = 2
+DEBUG = 6
 
 
 def print_(
-    values: object, level = 0
+    msg: str, values: object, level = 0
 ):
     if DEBUG == level:
-        print(values)
+        print(f"{msg} {values}")
