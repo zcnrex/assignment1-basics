@@ -561,7 +561,7 @@ def get_tokenizer(
     """
     from cs336_basics.bpe import BPETokenizer
 
-    BPETokenizer(vocab=vocab, merges=merges, special_tokens=special_tokens)
+    return BPETokenizer(vocab=vocab, merges=merges, special_tokens=special_tokens)
 
 
 def run_train_bpe(
