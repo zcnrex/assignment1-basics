@@ -46,6 +46,7 @@ class BPETokenizer:
                     original_token_list = new_token_list
             for new_token in new_token_list:
                 encoded_token.append(self.inverse_vocab[new_token])
+        # breakpoint()
         return encoded_token
 
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
@@ -55,16 +56,26 @@ class BPETokenizer:
         output = []
         for id in ids:
             output.extend(list(self.vocab[id]))
-        return bytes(output).decode(encoding="utf-8")
+        # breakpoint()
+        return bytes(output).decode(encoding="utf-8", errors="ignore")
 
     def pre_tokenize(self, text):
-        b_text = text.encode("utf-8")
+        b_texts = text.encode("utf-8")
         pre_token = []
-        for m in re.finditer(PAT, b_text):
-            if m.group(0) in self.special_tokens:
-                pre_token.append(m.group(0))
-            else:
-                pre_token.append(self.bytes_to_bytes_tuple(m.group(0)))
+        if self.delimiter:
+            b_text_list = re.split(self.delimiter, b_texts)
+        else:
+            b_text_list = [b_texts]
+        s_t = "<|endoftext|>".encode("utf-8")
+        for b_text in b_text_list:
+            for m in re.finditer(PAT, b_text):
+                if m.group(0) in self.special_tokens:
+                    pre_token.append(m.group(0))
+                else:
+                    pre_token.append(self.bytes_to_bytes_tuple(m.group(0)))
+            pre_token.append((s_t,))
+        del pre_token[-1]
+        # breakpoint()
         return pre_token
 
     def bytes_to_bytes_tuple(self, input_bytes):
@@ -85,7 +96,11 @@ class BPETokenizer:
         special_tokens: list[str] | None = None,
     ):
         self.special_tokens = set()
+        self.escaped_special_tokens = set()
+        self.delimiter = b""
         if special_tokens is None:
             return
         for s in special_tokens:
             self.special_tokens.add(s.encode("utf-8", errors="ignore"))
+            self.escaped_special_tokens.add(re.escape(s).encode("utf-8", errors="ignore"))
+        self.delimiter = b"|".join(self.escaped_special_tokens)
