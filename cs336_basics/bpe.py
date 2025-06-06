@@ -1,5 +1,5 @@
 from collections import defaultdict
-from .utils import print_
+import pickle
 from collections.abc import Iterable, Iterator
 import regex as re
 
@@ -20,7 +20,11 @@ class BPETokenizer:
 
     @classmethod
     def from_files(cls, vocab_filepath: str, merges_filepath: str, special_tokens: list[str] | None = None):
-        pass
+        with open(vocab_filepath, 'rb') as f:
+            vocab = pickle.load(f)
+        with open(merges_filepath, 'rb') as f:
+            merges = pickle.load(f)
+        return cls(vocab, merges, special_tokens)
 
     def encode(self, text: str) -> list[int]:
         pre_token = self.pre_tokenize(text)
