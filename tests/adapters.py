@@ -28,8 +28,11 @@ def run_linear(
     Returns:
         Float[Tensor, "... d_out"]: The transformed output of your linear module.
     """
+    from cs336_basics.linear import Linear
 
-    raise NotImplementedError
+    linear = Linear(d_in, d_out)
+    linear.weight.data = weights
+    return linear.forward(in_features)
 
 
 def run_embedding(
@@ -50,8 +53,11 @@ def run_embedding(
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
+    from cs336_basics.embedding import Embedding
 
-    raise NotImplementedError
+    embedding = Embedding(vocab_size, d_model)
+    embedding.weight.data = weights
+    return embedding.forward(token_ids)
 
 
 def run_swiglu(
@@ -83,7 +89,13 @@ def run_swiglu(
     # swiglu.w1.weight.data = w1_weight
     # swiglu.w2.weight.data = w2_weight
     # swiglu.w3.weight.data = w3_weight
-    raise NotImplementedError
+    from cs336_basics.swiglu import SwiGLU
+
+    swiglu = SwiGLU(d_model, d_ff)
+    swiglu.w1.weight.data = w1_weight
+    swiglu.w2.weight.data = w2_weight
+    swiglu.w3.weight.data = w3_weight
+    return swiglu.forward(in_features)
 
 
 def run_scaled_dot_product_attention(
@@ -378,7 +390,11 @@ def run_rmsnorm(
         Float[Tensor,"... d_model"]: Tensor of with the same shape as `in_features` with the output of running
         RMSNorm of the `in_features`.
     """
-    raise NotImplementedError
+    from cs336_basics.rms_norm import RMSNorm
+
+    rms_norm = RMSNorm(d_model, eps)
+    rms_norm.weight.data = weights
+    return rms_norm.forward(in_features)
 
 
 def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
@@ -594,4 +610,6 @@ def run_train_bpe(
     from cs336_basics.train_bpe_opt import BPETokenizerTrainer
 
     tokenizer_trainer = BPETokenizerTrainer()
-    return tokenizer_trainer.train(input_path=input_path, vocab_size=vocab_size, special_tokens=special_tokens, kwargs=kwargs)
+    return tokenizer_trainer.train(
+        input_path=input_path, vocab_size=vocab_size, special_tokens=special_tokens, kwargs=kwargs
+    )
