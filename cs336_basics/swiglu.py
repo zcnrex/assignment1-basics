@@ -1,5 +1,6 @@
 import torch
 from .linear import Linear
+from .functions import silu
 
 class SwiGLU(torch.nn.Module):
     def __init__(self, d_model, d_ff, device=None, dtype=None):
@@ -11,9 +12,6 @@ class SwiGLU(torch.nn.Module):
     def forward(self, x):
         in_dtype = x.dtype
         x = x.to(torch.float32)
-        silu = self._silu(self.w1(x))
-        res = self.w2(silu * self.w3(x))
+        silu_out = silu(self.w1(x))
+        res = self.w2(silu_out * self.w3(x))
         return res.to(in_dtype)
-
-    def _silu(self, x):
-        return x * torch.sigmoid(x)
