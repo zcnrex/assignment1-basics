@@ -155,10 +155,10 @@ def run_multihead_self_attention(
     from cs336_basics.multi_head_self_attention import MultiHeadSelfAttention
 
     mha = MultiHeadSelfAttention(d_model, num_heads)
-    mha.w_q.weight.data = q_proj_weight
-    mha.w_k.weight.data = k_proj_weight
-    mha.w_v.weight.data = v_proj_weight
-    mha.w_o.weight.data = o_proj_weight
+    mha.q_proj.weight.data = q_proj_weight
+    mha.k_proj.weight.data = k_proj_weight
+    mha.v_proj.weight.data = v_proj_weight
+    mha.output_proj.weight.data = o_proj_weight
     return mha(in_features)
 
 
@@ -202,10 +202,10 @@ def run_multihead_self_attention_with_rope(
     from cs336_basics.multi_head_self_attention import MultiHeadSelfAttention
 
     mha = MultiHeadSelfAttention(d_model=d_model, num_heads=num_heads, max_seq_len=max_seq_len, theta=theta)
-    mha.w_q.weight.data = q_proj_weight
-    mha.w_k.weight.data = k_proj_weight
-    mha.w_v.weight.data = v_proj_weight
-    mha.w_o.weight.data = o_proj_weight
+    mha.q_proj.weight.data = q_proj_weight
+    mha.k_proj.weight.data = k_proj_weight
+    mha.v_proj.weight.data = v_proj_weight
+    mha.output_proj.weight.data = o_proj_weight
     return mha(in_features, token_positions)
 
 
@@ -304,7 +304,11 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer_block import TransformerBlock
+
+    tf_b = TransformerBlock(d_model=d_model, num_heads=num_heads, d_ff=d_ff, max_seq_len=max_seq_len, theta=theta)
+    tf_b.load_state_dict(weights)
+    return tf_b(in_features)
 
 
 def run_transformer_lm(
@@ -386,7 +390,19 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
+    from cs336_basics.transformer_lm import TransformerLM
+
+    tf_lm = TransformerLM(
+        d_model=d_model,
+        vocab_size=vocab_size,
+        num_layers=num_layers,
+        num_heads=num_heads,
+        d_ff=d_ff,
+        max_seq_len=context_length,
+        theta=rope_theta,
+    )
+    tf_lm.load_state_dict(weights)
+    return tf_lm(in_indices)
 
 
 def run_rmsnorm(

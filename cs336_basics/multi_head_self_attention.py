@@ -11,10 +11,10 @@ class MultiHeadSelfAttention(torch.nn.Module):
         d_k = d_model // num_heads
         self.num_heads = num_heads
         self.d_k = d_k
-        self.w_q = Linear(num_heads * d_k, d_model)
-        self.w_k = Linear(num_heads * d_k, d_model)
-        self.w_v = Linear(num_heads * d_k, d_model)
-        self.w_o = Linear(d_k, num_heads * d_model)
+        self.q_proj = Linear(in_features=d_model, out_features=num_heads * d_k)
+        self.k_proj = Linear(in_features=d_model, out_features=num_heads * d_k)
+        self.v_proj = Linear(in_features=d_model, out_features=num_heads * d_k)
+        self.output_proj = Linear(in_features=num_heads * d_k, out_features=d_model)
         self.rope = RoPE(d_k=d_k, max_seq_len=max_seq_len, theta=theta, device=device)
 
     def forward(self, x: torch.Tensor, token_positions: torch.Tensor = None):
@@ -22,9 +22,9 @@ class MultiHeadSelfAttention(torch.nn.Module):
         device = x.device
 
         # Project and reshape for multi-head attention
-        q = rearrange(self.w_q(x), "b l (h d) -> b h l d", h=self.num_heads)
-        k = rearrange(self.w_k(x), "b l (h d) -> b h l d", h=self.num_heads)
-        v = rearrange(self.w_v(x), "b l (h d) -> b h l d", h=self.num_heads)
+        q = rearrange(self.q_proj(x), "b l (h d) -> b h l d", h=self.num_heads)
+        k = rearrange(self.k_proj(x), "b l (h d) -> b h l d", h=self.num_heads)
+        v = rearrange(self.v_proj(x), "b l (h d) -> b h l d", h=self.num_heads)
         if token_positions is not None:
             q = self.rope(q, token_positions)
             k = self.rope(k, token_positions)
@@ -39,4 +39,4 @@ class MultiHeadSelfAttention(torch.nn.Module):
         # Merge heads
         out = rearrange(attn, "b h l d -> b l (h d)")
 
-        return self.w_o(out)
+        return self.output_proj(out)
