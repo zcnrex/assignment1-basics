@@ -21,3 +21,16 @@ def scaled_dot_product_attention(Q: torch.Tensor, K: torch.Tensor, V: torch.Tens
         scores = scores.masked_fill(mask == 0, float("-inf"))
     attn_weights = softmax(scores)
     return torch.matmul(attn_weights, V)
+
+
+def log_softmax(inputs, dim=1):
+    max_vals, _ = torch.max(inputs, dim=dim, keepdim=True)
+    shifted = inputs - max_vals
+    logsumexp = torch.log(torch.sum(torch.exp(shifted), dim=dim, keepdim=True))
+    return shifted - logsumexp
+
+
+def cross_entropy(inputs, targets):
+    log_probs = log_softmax(inputs, dim=1)
+    loss = -log_probs[torch.arange(inputs.shape[0]), targets]
+    return loss.mean()
