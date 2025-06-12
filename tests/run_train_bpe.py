@@ -24,11 +24,11 @@ vocab, merges = run_train_bpe(
     special_tokens=["<|endoftext|>"],
 )
 
-with open(vocab_path, 'wb') as f:
+with open(vocab_path, "wb") as f:
     pickle.dump(vocab, f)
 
 # Save merges to text file
-with open(merges_path, 'wb') as f:
+with open(merges_path, "wb") as f:
     pickle.dump(merges, f)
 
 

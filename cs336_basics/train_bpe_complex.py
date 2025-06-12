@@ -17,6 +17,7 @@ class PairValue:
     indices: dict = defaultdict(int)
     indices: defaultdict = field(default_factory=lambda: defaultdict(int))
 
+
 class BPETokenizerTrainer:
     def __init__(
         self,
@@ -99,7 +100,7 @@ class BPETokenizerTrainer:
                     print_("max_item", max_item, 6)
                 i = 0
                 while i < len(byte_tuple):
-                    if i < len(byte_tuple) - 1 and (byte_tuple[i], byte_tuple[i+1]) == bytes_tuple_to_merge:
+                    if i < len(byte_tuple) - 1 and (byte_tuple[i], byte_tuple[i + 1]) == bytes_tuple_to_merge:
                         if i > 0:
                             pair_to_update = (byte_tuple[i - 1], byte_tuple[i])
                             # new_pair = (byte_tuple[i - 1], bytes_to_merge)
@@ -141,8 +142,8 @@ class BPETokenizerTrainer:
             print(f"byte_count_tuple {byte_count_tuple}")
             print(f"pairs[pair_to_update] {pairs[pair_to_update]}")
             # print(f"pairs[new_pair] {pairs[new_pair]}")
-            print(pair_to_update == (b'n', b'd'))
-        if new_pair == (b'in', b'in'):
+            print(pair_to_update == (b"n", b"d"))
+        if new_pair == (b"in", b"in"):
             breakpoint()
         if pair_to_update not in pairs:
             raise ValueError()
@@ -154,7 +155,7 @@ class BPETokenizerTrainer:
                     del pairs[pair_to_update][1][idx]
 
             if pairs[pair_to_update][0] == 0:
-                if pair_to_update == (b'n', b'd'):
+                if pair_to_update == (b"n", b"d"):
                     print("line128===============")
                     print(f"pair_to_update {pair_to_update}")
                     print(f"pairs[pair_to_update] {pairs[pair_to_update]}")

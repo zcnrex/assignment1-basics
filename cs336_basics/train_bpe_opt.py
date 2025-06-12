@@ -43,7 +43,7 @@ class BPETokenizerTrainer:
                 pairs[bytes_tuple].indices.add(idx)
 
         for iteration in range(num_merges):
-            # print(f"iteration: {iteration}")
+            print(f"iteration: {iteration}")
             max_item = self.find_max(pairs)
             bytes_tuple_to_merge = max_item[0]
             token_idx_list = max_item[1].indices
@@ -126,7 +126,7 @@ class BPETokenizerTrainer:
     def process_doc(self, args):
         file_path, start, end = args
         pre_token = defaultdict(int)
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             f.seek(start)
             docs = f.read(end - start)
             docs_list = re.split(self.delimiter, docs)
